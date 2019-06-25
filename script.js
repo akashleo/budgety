@@ -4,12 +4,28 @@ var budgetController = (function(){
           this.id= id;
           this.description = description;
           this.value= value;
+          this.percentage = -1;
      };
 
      var income = function(id, description, value){
           this.id= id;
           this.description = description;
           this.value= value;
+     };
+
+     expense.prototype.calcPercentage = function(totalIncome){
+
+          if(totalIncome>0){
+               this.percentage = Math.round((this.value/totalIncome)*100);
+          }
+          else{
+               this.percentage = -1;
+          }
+         
+     };
+
+     expense.prototype.getPercentage = function(){
+          return this.percentage;
      };
  
 
@@ -89,6 +105,22 @@ var budgetController = (function(){
 
           },
 
+          calculatePercentages : function(){
+
+               data.allitems.exp.forEach(function(cur){
+                    cur.calcPercentage(data.totals.inc);
+               });
+
+
+          },
+
+          getPercentages : function(){
+               var allPerc = data.allitems.exp.map(function(cur){
+                    return cur.getPercentage();
+               });
+               return allPerc;
+          },
+
           getBudget : function(){
 
                return {
@@ -138,7 +170,8 @@ var UIController =(function(){
           incomeLabel : '.budget__income--value',
           expensesLabel : '.budget__expenses--value',
           percentageLabel : '.budget__expenses--percentage',
-          container : '.container'
+          container : '.container',
+          expPercLabel : '.item__percentage'
      };
 
      return {
@@ -177,6 +210,14 @@ var UIController =(function(){
                document.querySelector(element).insertAdjacentHTML('beforeend', newhtml);
 
           },
+
+
+          deleteListItem : function(selectorID){
+
+               var el= document.getElementById(selectorID);
+               el.parentNode.removeChild(el);
+
+          },
  
           // Clearing the input fields
           clearFields : function(){
@@ -211,6 +252,33 @@ var UIController =(function(){
                {
                     document.querySelector(DOMstrings.percentageLabel).textContent = '---';
                }
+
+          },
+
+          displayPercentages : function(percentages){
+
+               var fields = document.querySelectorAll(DOMstrings.expPercLabel);
+               
+               var nodeListForEach = function(list , callback){
+                    for(var i=0;i<list.length;i++)
+                    {
+                         callback(list[i], i);
+                    }
+
+               };
+
+               nodeListForEach(fields , function(current, index ){
+                    if(percentages[index]>0)
+                    {
+                         current.textContent = percentages[index] +' %';
+                    }
+                    else
+                    {
+                         current.textContent = '---';
+                    }
+                    
+               })
+
 
           },
 
@@ -255,6 +323,17 @@ var controller=(function(budC, UIC){
           UIC.displayBudget(budget);
      }
 
+     var updatePercentages = function(){
+          // 1. calculate the percentges
+          budC.calculatePercentages();
+
+          //2. read the percentage from the buudget controller
+          var percentages = budC.getPercentages();
+
+          //3. Update the ui with the new percentages
+          console.log(percentages);
+          UIC.displayPercentages(percentages);
+     }
      
      var ctrlAddItem = function()
      {    
@@ -276,6 +355,9 @@ var controller=(function(budC, UIC){
 
                //4. Calculate and update the budget
                updateBudget();
+
+               //5. Calculate and update percentages
+               updatePercentages();
 
           }
           
@@ -302,10 +384,13 @@ var controller=(function(budC, UIC){
 
 
           //delete the item from the ui
-
+          UIC.deleteListItem(itemID);
 
           // update the show the budget
+          updateBudget();
 
+          // update the percentages in expenses
+          updatePercentages();
      };
 
      return {
